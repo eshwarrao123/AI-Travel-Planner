@@ -1,7 +1,8 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDB } from './config/db';
+import { connectDB } from './config/db.js';
+import authRoutes from './routes/authRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -19,11 +20,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Placeholder routes
-app.get('/api/auth', (req: Request, res: Response) => {
-  res.json({ message: 'Auth endpoint placeholder' });
-});
+// Routes
+app.use('/api/auth', authRoutes);
 
+// Placeholder
 app.get('/api/trips', (req: Request, res: Response) => {
   res.json({ message: 'Trips endpoint placeholder' });
 });
