@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
+import tripRoutes from './routes/tripRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -23,10 +24,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 
-// Placeholder
-app.get('/api/trips', (req: Request, res: Response) => {
-  res.json({ message: 'Trips endpoint placeholder' });
-});
+app.use('/api/trips', tripRoutes);
 
 // Start server
 app.listen(PORT, () => {
