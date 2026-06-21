@@ -1,12 +1,10 @@
 const Trip = require('../models/Trip');
 
-// Exponential backoff executor for external API resilience
 async function fetchWithRetry(url, options, retries = 5, delay = 1000) {
   try {
     const response = await fetch(url, options);
     if (!response.ok) {
       if (response.status === 429 && retries > 0) {
-        // Wait and retry on rate limits
         await new Promise(resolve => setTimeout(resolve, delay));
         return fetchWithRetry(url, options, retries - 1, delay * 2);
       }
