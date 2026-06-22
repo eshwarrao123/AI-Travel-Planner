@@ -170,11 +170,66 @@ const getPublicTrip = async (req, res) => {
   }
 };
 
+const regenerateDay = async (req, res) => {
+  try {
+    const { dayNumber, feedback, destination, budgetTier } = req.body;
+    const trip = await Trip.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!trip) return res.status(404).json({ success: false, message: 'Trip not found' });
+
+    const prompt = `
+      Regenerate Day ${dayNumber} of a trip to ${destination}.
+      Budget: ${budgetTier}.
+      User request: "${feedback}"
+
+      Return ONLY valid JSON for one day:
+      {
+        "dayNumber": ${dayNumber},
+        "activities": [
+          {
+            "title": "Activity name",
+            "description": "Brief description",
+            "estimatedCostUSD": 20,
+            "timeOfDay": "Morning"
+          }
+        ]
+      }
+
+      timeOfDay must be exactly: Morning, Afternoon, or Evening.
+      Include 3 activities covering Morning, Afternoon, Evening.
+    `;
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+    const data = await fetchWithRetry(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      })
+    });
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('No response from AI');
+
+    const newDay = JSON.parse(text);
+    trip.itinerary = trip.itinerary.map(day => day.dayNumber === dayNumber ? newDay : day);
+    await trip.save();
+    return res.json(trip);
+
+  } catch (err) {
+    console.error('Regenerate day error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to regenerate day' });
+  }
+};
+
 module.exports = {
   generateTrip,
   getUserTrips,
   getTripById,
   updateTrip,
   deleteTrip,
-  getPublicTrip
+  getPublicTrip,
+  regenerateDay
 };
