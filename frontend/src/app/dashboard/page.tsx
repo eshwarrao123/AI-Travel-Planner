@@ -3,8 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-// ─── TypeScript Interfaces ─────────────────────────────────────────────────────
-
 interface Activity {
   _id?: string;
   title: string;
@@ -49,8 +47,6 @@ interface Trip {
   };
 }
 
-// ─── Dashboard Component ──────────────────────────────────────────────────────
-
 export default function Dashboard() {
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -58,6 +54,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState<boolean>(true);
   const [newActivityName, setNewActivityName] = useState<string>('');
   const [targetDay, setTargetDay] = useState<number>(1);
+  const [regeneratingDay, setRegeneratingDay] = useState<number | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -117,6 +114,68 @@ export default function Dashboard() {
     }
   };
 
+  const handleRemoveActivity = async (dayNum: number, actIndex: number) => {
+    if (!selectedTrip) return;
+    const updatedItinerary = selectedTrip.itinerary.map(day => {
+      if (day.dayNumber === dayNum) {
+        return { ...day, activities: day.activities.filter((_, i) => i !== actIndex) };
+      }
+      return day;
+    });
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/trips/${selectedTrip._id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ itinerary: updatedItinerary })
+        }
+      );
+      if (res.ok) {
+        const updated = await res.json();
+        setSelectedTrip(updated);
+        setTrips(trips.map(t => t._id === updated._id ? updated : t));
+      }
+    } catch (err) {
+      console.error('Remove activity failed', err);
+    }
+  };
+
+  const handleRegenerateDay = async (dayNum: number) => {
+    if (!selectedTrip || regeneratingDay) return;
+    const feedback = prompt(
+      `Regenerate Day ${dayNum} with what focus?\n\nExample: "more outdoor activities" or "cultural experiences"`
+    );
+    if (!feedback) return;
+    setRegeneratingDay(dayNum);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/trips/${selectedTrip._id}/regenerate-day`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            dayNumber: dayNum,
+            feedback,
+            destination: selectedTrip.destination,
+            budgetTier: selectedTrip.budgetTier
+          })
+        }
+      );
+      if (res.ok) {
+        const updated = await res.json();
+        setSelectedTrip(updated);
+        setTrips(trips.map(t => t._id === updated._id ? updated : t));
+      }
+    } catch (err) {
+      console.error('Regenerate day failed', err);
+    } finally {
+      setRegeneratingDay(null);
+    }
+  };
+
   const togglePackingItem = async (itemId: string) => {
     if (!selectedTrip) return;
     const updatedPacking = selectedTrip.packingList.map(item => {
@@ -139,8 +198,6 @@ export default function Dashboard() {
     }
   };
 
-  // ─── Loading ──────────────────────────────────────────────────────────────────
-
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#0a0a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '18px', fontFamily: 'Inter, sans-serif' }}>
@@ -148,8 +205,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // ─── Helpers ──────────────────────────────────────────────────────────────────
 
   const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') || '' : '';
 
@@ -163,15 +218,11 @@ export default function Dashboard() {
     Other:       { bg: '#1a1a35', text: '#94a3b8' },
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
-
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0a0a1a', fontFamily: 'Inter, sans-serif' }}>
 
-      {/* ── Header ── */}
       <div style={{ backgroundColor: '#12122a', borderBottom: '1px solid #2d2d4e', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
 
-        {/* Left — brand + nav */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={{ fontSize: '18px', marginRight: '8px' }}>✈️</span>
           <span style={{ color: '#ffffff', fontWeight: '700', fontSize: '18px' }}>Trao</span>
@@ -182,10 +233,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right — email + sign out */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ color: '#94a3b8', fontSize: '13px' }}>{userEmail}</span>
           <button
+            type="button"
             id="btn-sign-out"
             onClick={() => { localStorage.removeItem('token'); router.push('/login'); }}
             style={{ backgroundColor: '#dc2626', color: 'white', border: 'none', padding: '7px 16px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: '600', fontFamily: 'Inter, sans-serif' }}
@@ -195,11 +246,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Two-column grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', height: 'calc(100vh - 56px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', height: 'calc(100vh - 56px)' }}>
 
-        {/* ── LEFT SIDEBAR ── */}
-        <div style={{ backgroundColor: '#0d0d1f', borderRight: '1px solid #2d2d4e', padding: '20px 16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ backgroundColor: '#0d0d1f', borderRight: '1px solid #2d2d4e', padding: '20px 16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
           <div style={{ color: 'white', fontSize: '15px', fontWeight: '700', marginBottom: '8px' }}>My Trips</div>
 
@@ -209,6 +258,7 @@ export default function Dashboard() {
 
           {trips.map((trip) => (
             <button
+              type="button"
               key={trip._id}
               id={`trip-btn-${trip._id}`}
               onClick={() => setSelectedTrip(trip)}
@@ -220,6 +270,7 @@ export default function Dashboard() {
           ))}
 
           <button
+            type="button"
             id="btn-new-trip"
             onClick={() => router.push('/create')}
             style={{ width: '100%', padding: '10px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', marginTop: '8px', fontFamily: 'Inter, sans-serif' }}
@@ -227,7 +278,6 @@ export default function Dashboard() {
             + New Trip
           </button>
 
-          {/* Budget Card */}
           {selectedTrip && (
             <div style={{ backgroundColor: '#12122a', border: '1px solid #2d2d4e', borderRadius: '12px', padding: '16px', marginTop: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -253,8 +303,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ── RIGHT MAIN AREA ── */}
-        <div style={{ overflowY: 'auto', padding: '24px 28px', backgroundColor: '#0a0a1a' }}>
+          <div style={{ overflowY: 'auto', padding: '24px 28px', backgroundColor: '#0a0a1a' }}>
 
           {!selectedTrip ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>
@@ -272,6 +321,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <button
+                  type="button"
                   id="btn-share"
                   onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/trip/${selectedTrip._id}`); alert('Share link copied to clipboard!'); }}
                   style={{ backgroundColor: 'transparent', border: '1px solid #2d2d4e', color: '#94a3b8', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'Inter, sans-serif' }}
@@ -280,15 +330,21 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* Itinerary */}
               <div style={{ marginBottom: '32px' }}>
                 <h3 style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Itinerary</h3>
 
                 {selectedTrip.itinerary.map((day) => (
                   <div key={day.dayNumber} style={{ backgroundColor: '#12122a', border: '1px solid #2d2d4e', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
 
-                    <div style={{ color: 'white', fontWeight: 700, fontSize: 15, marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid #2d2d4e' }}>
-                      Day {day.dayNumber}
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid #2d2d4e' }}>
+                      <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>Day {day.dayNumber}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRegenerateDay(day.dayNumber)}
+                        style={{ marginLeft: 'auto', backgroundColor: 'transparent', border: '1px solid #2d2d4e', color: '#94a3b8', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Inter, sans-serif' }}
+                      >
+                        {regeneratingDay === day.dayNumber ? '⏳ Regenerating...' : '🔄 Regenerate'}
+                      </button>
                     </div>
 
                     {day.activities.map((act, i) => (
@@ -307,10 +363,14 @@ export default function Dashboard() {
                         {act.estimatedCostUSD > 0 && (
                           <span style={{ color: '#10b981', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>${act.estimatedCostUSD}</span>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveActivity(day.dayNumber, i); }}
+                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px', padding: '0 4px', flexShrink: 0, opacity: 0.7 }}
+                        >×</button>
                       </div>
                     ))}
 
-                    {/* Add Activity */}
                     <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
                       <input
                         id={`add-activity-day-${day.dayNumber}`}
@@ -322,6 +382,7 @@ export default function Dashboard() {
                         style={{ flex: 1, backgroundColor: '#1a1a35', border: '1px solid #2d2d4e', borderRadius: '8px', padding: '8px 12px', color: 'white', fontSize: '13px', outline: 'none', fontFamily: 'Inter, sans-serif' }}
                       />
                       <button
+                        type="button"
                         id={`btn-add-activity-${day.dayNumber}`}
                         onClick={() => handleAddActivity(day.dayNumber)}
                         style={{ backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}
@@ -333,7 +394,6 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Hotels */}
               {selectedTrip.hotels && selectedTrip.hotels.length > 0 && (
                 <div style={{ marginBottom: '32px' }}>
                   <h3 style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 16 }}>🏨 Recommended Hotels</h3>
@@ -352,7 +412,6 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Packing List */}
               <div>
                 <h3 style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>🎒 AI Packing Assistant</h3>
                 <p style={{ color: '#94a3b8', fontSize: 12, marginBottom: 16 }}>Smart packing based on destination and activities</p>
