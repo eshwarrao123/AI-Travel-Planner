@@ -12,10 +12,12 @@ export default function PublicTripPage({
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [hasToken, setHasToken] = useState(false);
+  const [hasToken] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!localStorage.getItem('token');
+  });
 
   useEffect(() => {
-    setHasToken(!!localStorage.getItem('token'));
     const load = async () => {
       try {
         const res = await fetch(`${BASE_URL}/api/trips/public/${id}`);
