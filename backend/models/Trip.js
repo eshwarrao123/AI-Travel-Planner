@@ -36,7 +36,7 @@ const TripSchema = new mongoose.Schema({
   },
   packingList: [{
     item: { type: String, required: true },
-    category: { type: String, enum: ['Documents', 'Clothing', 'Gear', 'Other'] },
+    category: { type: String, enum: ['Documents', 'Clothing', 'Gear', 'Other'], default: 'Other' },
     isPacked: { type: Boolean, default: false }
   }]
 }, { timestamps: true });

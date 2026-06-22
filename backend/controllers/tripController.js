@@ -84,16 +84,23 @@ const generateTrip = async (req, res) => {
 
     const cleanResult = JSON.parse(parsedResponseText);
 
+    const validCategories = ['Documents', 'Clothing', 'Gear', 'Other'];
+    const sanitizedPackingList = cleanResult.packingList.map(item => ({
+      ...item,
+      category: validCategories.includes(item.category) ? item.category : 'Other'
+    }));
+
+    // Save user isolated trip directly into MongoDB
     const newTrip = new Trip({
       userId,
       destination,
       durationDays,
       budgetTier,
-      interests: Array.isArray(interests) ? interests : [interests],
+      interests,
       itinerary: cleanResult.itinerary,
       hotels: cleanResult.hotels,
       estimatedBudget: cleanResult.estimatedBudget,
-      packingList: cleanResult.packingList
+      packingList: sanitizedPackingList  // use sanitized version
     });
 
     const savedTrip = await newTrip.save();
