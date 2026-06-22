@@ -6,7 +6,8 @@ const {
   getTripById,
   updateTrip,
   deleteTrip,
-  getPublicTrip
+  getPublicTrip,
+  regenerateDay
 } = require('../controllers/tripController');
 
 const router = express.Router();
@@ -22,5 +23,6 @@ router.get('/', getUserTrips);
 router.get('/:id', getTripById);
 router.put('/:id', updateTrip);
 router.delete('/:id', deleteTrip);
+router.post('/:id/regenerate-day', regenerateDay);
 
 module.exports = router;
