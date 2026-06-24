@@ -69,5 +69,5 @@ Each trip has a public read-only URL (`/trip/[id]`) that requires no authenticat
 - Packing list generated once at trip creation
 
 ## Deployed URLs
-Frontend: [your-vercel-url]
-Backend: [your-render-url]
+- Frontend: https://ai-travel-planner-alpha-lovat.vercel.app/
+- Backend: https://ai-travel-planner-ekrt.onrender.com
