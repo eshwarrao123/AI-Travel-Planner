@@ -4,7 +4,7 @@ async function fetchWithRetry(url, options, retries = 5, delay = 1000) {
   try {
     const response = await fetch(url, options);
     if (!response.ok) {
-      if (response.status === 429 && retries > 0) {
+      if ((response.status === 429 || response.status === 503) && retries > 0) {
         await new Promise(resolve => setTimeout(resolve, delay));
         return fetchWithRetry(url, options, retries - 1, delay * 2);
       }
@@ -90,6 +90,22 @@ const generateTrip = async (req, res) => {
       category: validCategories.includes(item.category) ? item.category : 'Other'
     }));
 
+    // Sanitize timeOfDay values
+    const validTimeOfDay = ['Morning', 'Afternoon', 'Evening'];
+    const sanitizedItinerary = cleanResult.itinerary.map(day => ({
+      ...day,
+      activities: day.activities.map(activity => ({
+        ...activity,
+        timeOfDay: validTimeOfDay.includes(activity.timeOfDay)
+          ? activity.timeOfDay
+          : activity.timeOfDay === 'Night' ? 'Evening'
+          : activity.timeOfDay === 'Full Day' ? 'Morning'
+          : activity.timeOfDay.includes('Morning') ? 'Morning'
+          : activity.timeOfDay.includes('Afternoon') ? 'Afternoon'
+          : 'Evening'
+      }))
+    }));
+
     // Save user isolated trip directly into MongoDB
     const newTrip = new Trip({
       userId,
@@ -97,7 +113,7 @@ const generateTrip = async (req, res) => {
       durationDays,
       budgetTier,
       interests,
-      itinerary: cleanResult.itinerary,
+      itinerary: sanitizedItinerary,  // changed from cleanResult.itinerary
       hotels: cleanResult.hotels,
       estimatedBudget: cleanResult.estimatedBudget,
       packingList: sanitizedPackingList  // use sanitized version
